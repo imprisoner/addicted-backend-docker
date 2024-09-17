@@ -1,0 +1,82 @@
+version: "3"
+
+networks:
+  addicted_net:
+    external: true
+
+services:
+  addicted-db:
+    image: postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "32768:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - addicted_net
+
+  addicted-backend:
+    build: ./parse-server/
+    ports:
+      - "32769:1337"
+    volumes:
+      - ./../addicted-parse-cloud/:/parse-server/cloud
+    command:
+      [
+        "--appId",
+        "app1",
+        "--masterKey",
+        "key1",
+        "--databaseURI",
+        "postgres://postgres:postgres@addicted-db/addicted",
+        "--cloud",
+        "/parse-server/cloud/main.js",
+        "--allowClientClassCreation",
+        "false",
+        "--auth",
+        '{ "vkontakte": { "appSecret": "bk0FUwD6wYs9qxaUbnlt", "appIds": "8168905" }, "apple": { "client_id": "me.zahleb.web" } }'
+      ]
+    environment:
+      - DB_HOST_MONGO=addicted-mongodb
+      - DB_NAME_MONGO=addicted
+      - DB_USER_MONGO=admin
+      - DB_PASS_MONGO=admin
+      - DB_PORT_MONGO=27017
+      - REDIS_PASSWORD=fff
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DEFAULT_REDIS_TTL=60
+    depends_on:
+      - addicted-db
+      - addicted-mongodb
+    networks:
+      - addicted_net
+
+  addicted-mongodb:
+    image: mongo:latest
+    container_name: addicted-mongodb
+    environment:
+      - MONGO_INITDB_DATABASE=addicted
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=admin
+    command: [ "--auth" ]
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/var/lib/mongodb/data
+    networks:
+      - addicted_net
+
+  redis:
+    image: "redis:alpine"
+    networks:
+      - addicted_net
+    ports:
+      - "6379:6379"
+    command: "redis-server --requirepass fff"
+
+volumes:
+  db-data: null
+  mongodb-data: null
